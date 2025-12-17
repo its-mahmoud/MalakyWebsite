@@ -180,7 +180,8 @@ export default function MealDetailsPage() {
             <div className="flex items-center gap-4 mb-6">
               <button
                 onClick={() => setQuantity(quantity + 1)}
-                className="w-10 h-10 bg-[#DC2B3F] text-white rounded"
+                className="w-10 h-10 bg-[#DC2B3F] text-white rounded       flex items-center justify-center
+"
               >
                 <Plus />
               </button>
@@ -190,7 +191,8 @@ export default function MealDetailsPage() {
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
                 disabled={quantity === 1}
-                className="w-10 h-10 bg-[#DC2B3F] text-white rounded disabled:opacity-50"
+                className="w-10 h-10 bg-[#DC2B3F] text-white rounded       flex items-center justify-center
+ disabled:opacity-50"
               >
                 <Minus />
               </button>
