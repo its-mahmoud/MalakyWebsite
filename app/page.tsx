@@ -1,7 +1,7 @@
 "use client";
 
-import Navbar from "components/Navbar";
-import HeroCard from "components/HeroCard";
+import Navbar from "../components/Navbar";
+import HeroCard from "../components/HeroCard";
 
 const heroCards = [
   {
