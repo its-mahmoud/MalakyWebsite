@@ -11,7 +11,7 @@ interface MealCardProps {
 }
 
 export function MealCard({
-    id,
+  id,
   name,
   description,
   price,
@@ -21,14 +21,14 @@ export function MealCard({
   const fallbackImage = "/images/fallbackimage.jpg";
 
   return (
-    <Link href={`/menu/${id}`} className="block">
+    <Link href={`/menu/${id}`} className="block cursor-pointer">
       <div
         className="
-      bg-white rounded-2xl overflow-hidden
-      shadow-md hover:shadow-xl
-      transition-all duration-300
-      group
-    "
+          bg-white rounded-2xl overflow-hidden
+          shadow-md hover:shadow-xl
+          transition-all duration-300
+          group hover:-translate-y-1
+        "
       >
         {/* Image */}
         <div className="relative h-56 overflow-hidden bg-gray-100">
@@ -36,20 +36,18 @@ export function MealCard({
             src={image && image.trim() !== "" ? image : fallbackImage}
             alt={name}
             onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src = fallbackImage;
+              e.currentTarget.src = fallbackImage;
             }}
             className="
-            w-full h-full object-cover
-            group-hover:scale-110
-            transition-transform duration-500
-          "
+              w-full h-full object-cover
+              group-hover:scale-110
+              transition-transform duration-500
+            "
           />
 
-          {/* Category Badge */}
-          <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm">
-            <span className="text-[#DC2B3F] text-sm font-semibold">
-              {category}
-            </span>
+          {/* Category */}
+          <div className="absolute top-4 right-4 bg-white/90 px-3 py-1 rounded-full text-sm font-semibold text-[#DC2B3F] shadow">
+            {category}
           </div>
         </div>
 
@@ -57,7 +55,7 @@ export function MealCard({
         <div className="p-6">
           <h3 className="text-gray-900 font-bold mb-2">{name}</h3>
 
-          <p className="text-gray-600 mb-4 line-clamp-2 leading-relaxed text-sm">
+          <p className="text-gray-600 mb-4 line-clamp-2 text-sm">
             {description}
           </p>
 
@@ -70,15 +68,20 @@ export function MealCard({
               </span>
             </div>
 
-            {/* Add */}
+            {/* Add Button */}
             <button
+              onClick={(e) => {
+                e.preventDefault(); // يمنع الانتقال
+                e.stopPropagation(); // أمان إضافي
+                // لاحقًا: addToCart(id)
+              }}
               className="
-            flex items-center gap-1
-            bg-[#DC2B3F] text-white
-            px-4 py-2 rounded-xl
-            hover:bg-[#C02436]
-            transition-colors
-          "
+                flex items-center gap-1
+                bg-[#DC2B3F] text-white
+                px-4 py-2 rounded-xl
+                hover:bg-[#C02436]
+                transition-colors
+              "
             >
               <ShoppingCart className="w-5 h-5" />
               <span className="text-sm font-semibold">أضف</span>

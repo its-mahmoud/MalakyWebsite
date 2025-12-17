@@ -1,110 +1,178 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "../../../components/Navbar";
+import { supabase } from "../../../lib/supabaseClient";
 import { Plus, Minus, ArrowRight } from "lucide-react";
-import { toast } from "sonner";
 
-/* ====== بيانات مؤقتة (لاحقًا من Supabase) ====== */
-const meals = [
-  {
-    id: 1,
-    name: "بروست ملكي",
-    description: "دجاج مقرمش مع خلطة ملكي الخاصة",
-    price: 25,
-    image: "/images/beefburger.jpg",
-  },
-];
+/* ================= Types ================= */
 
-/* ====== Options ====== */
-const sizes = [
-  { id: "small", name: "صغير", priceMultiplier: 0.8 },
-  { id: "medium", name: "وسط", priceMultiplier: 1 },
-  { id: "large", name: "كبير", priceMultiplier: 1.3 },
-];
+type OptionValue = {
+  label: string;
+  value: string;
+  priceModifier: number;
+};
 
-const spiceLevels = [
-  { id: "none", name: "بدون حار" },
-  { id: "mild", name: "حار خفيف" },
-  { id: "medium", name: "حار متوسط" },
-  { id: "hot", name: "حار جداً" },
-];
+type MealOption = {
+  id: string;
+  type: "single-select" | "multi-select";
+  label: string;
+  values: OptionValue[];
+};
 
-const extras = [
-  { id: "extra-sauce", name: "صوص إضافي", price: 3 },
-  { id: "fries", name: "بطاطس مقلية", price: 8 },
-  { id: "cheese", name: "جبنة", price: 6 },
-];
+type Meal = {
+  id: number;
+  name: string;
+  description: string | null;
+  price: number;
+  options: MealOption[] | null;
+  menu_item_images: { image_url: string }[];
+};
+
+/* ================= Page ================= */
 
 export default function MealDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
 
-  const meal = meals.find((m) => m.id === Number(id));
+  const [meal, setMeal] = useState<Meal | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [quantity, setQuantity] = useState(1);
-  const [selectedSize, setSelectedSize] = useState("medium");
-  const [selectedSpice, setSelectedSpice] = useState("none");
-  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
+  const [selectedOptions, setSelectedOptions] = useState<
+    Record<string, string>
+  >({});
+
+  /* ---------- Fetch meal ---------- */
+  useEffect(() => {
+    const fetchMeal = async () => {
+      const { data, error } = await supabase
+        .from("menu_items")
+        .select(
+          `
+          id,
+          name,
+          description,
+          price,
+          options,
+          menu_item_images ( image_url )
+        `
+        )
+        .eq("id", id)
+        .single();
+
+      if (!error) setMeal(data);
+      setLoading(false);
+    };
+
+    fetchMeal();
+  }, [id]);
+
+  if (loading) {
+    return <div className="text-center mt-40">جاري التحميل...</div>;
+  }
 
   if (!meal) {
     return (
-      <div className="min-h-screen bg-[#F5F5F5]" dir="rtl">
-        <Navbar />
-        <div className="text-center py-20">
-          <h2>الوجبة غير موجودة</h2>
-          <button
-            onClick={() => router.push("/menu")}
-            className="mt-4 text-[#DC2B3F]"
-          >
-            العودة للقائمة
-          </button>
-        </div>
+      <div className="text-center mt-40">
+        <h2>الوجبة غير موجودة</h2>
+        <button
+          onClick={() => router.push("/menu")}
+          className="text-[#DC2B3F] mt-4"
+        >
+          العودة للقائمة
+        </button>
       </div>
     );
   }
 
-  const sizeMultiplier =
-    sizes.find((s) => s.id === selectedSize)?.priceMultiplier || 1;
+  /* ---------- Image ---------- */
+  const image =
+    meal.menu_item_images?.[0]?.image_url || "/images/fallbackimage.jpg";
 
-  const extrasPrice = extras
-    .filter((e) => selectedExtras.includes(e.id))
-    .reduce((sum, e) => sum + e.price, 0);
+  /* ---------- Price calculation ---------- */
+  const optionsPrice =
+    meal.options?.reduce((sum, option) => {
+      const selected = selectedOptions[option.id];
+      const value = option.values.find((v) => v.value === selected);
+      return sum + (value?.priceModifier || 0);
+    }, 0) || 0;
 
-  const totalPrice =
-    (meal.price * sizeMultiplier + extrasPrice) * quantity;
+  const totalPrice = (meal.price + optionsPrice) * quantity;
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5]" dir="rtl">
-      <Navbar />
+    <div dir="rtl" className="min-h-screen bg-[#F5F5F5]">
+      <Navbar variant="floating" />
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-10 mt-10">
         {/* Back */}
         <button
           onClick={() => router.push("/menu")}
-          className="flex items-center gap-2 text-gray-600 hover:text-[#DC2B3F] mb-6"
+          className="flex items-center gap-2 text-gray-600 mb-6 hover:text-[#DC2B3F]"
         >
           <ArrowRight className="w-5 h-5" />
           العودة للقائمة
         </button>
 
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden grid lg:grid-cols-2">
-          {/* Image */}
-          <div className="h-[400px] lg:h-full">
-            <img
-              src={meal.image}
-              alt={meal.name}
-              className="w-full h-full object-cover"
-            />
+        <div className="bg-white rounded-2xl shadow-lg grid lg:grid-cols-2 overflow-hidden">
+          {/* ================= Image (1:1) ================= */}
+          <div className="p-6">
+            <div className="aspect-square w-full overflow-hidden rounded-xl bg-gray-100">
+              <img
+                src={image}
+                alt={meal.name}
+                onError={(e) => {
+                  e.currentTarget.src = "/images/fallbackimage.jpg";
+                }}
+                className="w-full h-full object-cover"
+              />
+            </div>
           </div>
 
-          {/* Details */}
+          {/* ================= Info ================= */}
           <div className="p-8">
             <h1 className="text-3xl font-extrabold mb-4">{meal.name}</h1>
-            <p className="text-gray-600 mb-6">{meal.description}</p>
 
-            <div className="text-3xl text-[#DC2B3F] font-bold mb-6">
+            {meal.description && (
+              <p className="text-gray-600 mb-6">{meal.description}</p>
+            )}
+
+            {/* Options */}
+            {meal.options?.map((option) => (
+              <div key={option.id} className="mb-6">
+                <h4 className="font-bold mb-2">{option.label}</h4>
+
+                <div className="flex flex-wrap gap-3">
+                  {option.values.map((v) => (
+                    <button
+                      key={v.value}
+                      onClick={() =>
+                        setSelectedOptions((prev) => ({
+                          ...prev,
+                          [option.id]: v.value,
+                        }))
+                      }
+                      className={`px-4 py-2 rounded-lg border transition ${
+                        selectedOptions[option.id] === v.value
+                          ? "border-[#DC2B3F] bg-[#DC2B3F]/10 text-[#DC2B3F]"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      {v.label}
+                      {v.priceModifier > 0 && (
+                        <span className="text-sm text-[#DC2B3F] mr-1">
+                          +{v.priceModifier} ₪
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* Price */}
+            <div className="text-3xl font-bold text-[#DC2B3F] mb-6">
               {totalPrice} ₪
             </div>
 
@@ -116,20 +184,19 @@ export default function MealDetailsPage() {
               >
                 <Plus />
               </button>
-              <span>{quantity}</span>
+
+              <span className="text-lg font-bold">{quantity}</span>
+
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-10 h-10 bg-[#DC2B3F] text-white rounded"
                 disabled={quantity === 1}
+                className="w-10 h-10 bg-[#DC2B3F] text-white rounded disabled:opacity-50"
               >
                 <Minus />
               </button>
             </div>
 
-            <button
-              onClick={() => toast.success("تمت الإضافة للسلة")}
-              className="w-full bg-[#DC2B3F] text-white py-3 rounded-lg"
-            >
+            <button className="w-full bg-[#DC2B3F] text-white py-3 rounded-lg hover:bg-[#C02436]">
               إضافة إلى السلة
             </button>
           </div>
