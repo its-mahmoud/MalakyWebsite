@@ -67,20 +67,27 @@ export default function MealDetailsPage() {
   const handleAddToCart = () => {
     if (!meal) return;
 
-    const cartItem = {
-      id: Date.now(), // unique cart id
+    addToCart({
+      mealId: meal.id, // 🔑 مهم جدًا
       name: meal.name,
       image: imgSrc,
       quantity,
-      options: Object.entries(selectedOptions).map(([optionId, value]) => ({
-        optionId,
-        value,
-      })),
       notes,
-      totalPrice,
-    };
 
-    addToCart(cartItem);
+      options: Object.entries(selectedOptions).map(([optionId, value]) => {
+        const option = meal.options?.find((o) => o.id === optionId);
+        const selectedValue = option?.values.find((v) => v.value === value);
+
+        return {
+          optionId,
+          value,
+          label: selectedValue?.label || value, // ✅ هنا المهم
+        };
+      }),
+
+      basePrice: meal.price, // ✅ السعر الأساسي
+      optionsPrice, // ✅ مجموع الإضافات
+    });
   };
 
   // ===== Fetch meal =====

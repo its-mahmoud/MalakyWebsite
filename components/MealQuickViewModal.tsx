@@ -146,18 +146,34 @@ export default function MealQuickViewModal() {
           <button
             onClick={() => {
               addToCart({
-                id: Date.now(),
+                mealId: meal.id,
                 name: meal.name,
-                image: meal.menu_item_images?.[0]?.image_url,
-                options: Object.entries(selectedOptions).map(
-                  ([optionId, value]) => ({
-                    optionId,
-                    value,
-                  })
-                ),
+                image:
+                  meal.menu_item_images?.[0]?.image_url ||
+                  "/images/fallbackimage.jpg",
+
                 quantity,
                 notes,
-                totalPrice,
+
+                options: Object.entries(selectedOptions).map(
+                  ([optionId, value]) => {
+                    const option = meal.options?.find(
+                      (o: any) => o.id === optionId
+                    );
+                    const selectedValue = option?.values.find(
+                      (v: any) => v.value === value
+                    );
+
+                    return {
+                      optionId,
+                      value,
+                      label: selectedValue?.label || value,
+                    };
+                  }
+                ),
+
+                basePrice: meal.price,
+                optionsPrice, 
               });
 
               closeMeal();
