@@ -227,7 +227,9 @@ export default function MenuPage() {
             className="
         mx-auto flex gap-3 px-14
         overflow-x-auto
+        w-[95%]
         scroll-smooth
+        rounded-full
         scrollbar-none
         relative z-10
       "
