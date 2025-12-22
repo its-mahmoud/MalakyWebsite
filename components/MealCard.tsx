@@ -1,5 +1,6 @@
 import { ShoppingCart } from "lucide-react";
 import Link from "next/link";
+import { useMealQuickView } from "@/context/MealQuickViewContext";
 
 interface MealCardProps {
   id: number;
@@ -19,6 +20,7 @@ export function MealCard({
   category,
 }: MealCardProps) {
   const fallbackImage = "/images/fallbackimage.jpg";
+  const { openMeal } = useMealQuickView();
 
   return (
     <Link href={`/menu/${id}`} className="block cursor-pointer">
@@ -73,7 +75,7 @@ export function MealCard({
               onClick={(e) => {
                 e.preventDefault(); // يمنع الانتقال
                 e.stopPropagation(); // أمان إضافي
-                // لاحقًا: addToCart(id)
+                openMeal(id);
               }}
               className="
                 flex items-center gap-1

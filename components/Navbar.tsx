@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ShoppingCart } from "lucide-react";
+import { useCart } from "@/context/CartContext";
+import { useCartUI } from "@/context/CartUIContext";
 
 type NavbarProps = {
   variant?: "default" | "floating";
@@ -11,8 +14,11 @@ export default function Navbar({ variant = "default" }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
+  const { items } = useCart();
+  const { openCart } = useCartUI(); // ⭐ المفتاح
+
   useEffect(() => {
-    if (variant === "floating") return; // ⭐ أهم سطر
+    if (variant === "floating") return;
 
     const onScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", onScroll);
@@ -36,9 +42,36 @@ export default function Navbar({ variant = "default" }: NavbarProps) {
         ${variant === "floating" ? floatingStyle : defaultStyle}
       `}
     >
-      {/* زر الطلب */}
-      <button className="bg-[#e63946] text-white px-[20px] py-[10px] rounded-[10px] font-bold hover:bg-[#ff2121] transition">
-        ! أطلب الآن
+      {/* زر السلة */}
+      <button
+        onClick={openCart}
+        className="
+          relative
+          bg-[#e63946] text-white
+          px-[18px] py-[10px]
+          rounded-[12px]
+          flex items-center gap-2
+          font-bold
+          hover:bg-[#ff2121]
+          transition
+        "
+      >
+        <ShoppingCart size={22} />
+        <span className="hidden sm:inline">السلة</span>
+
+        {items.length > 0 && (
+          <span
+            className="
+              absolute -top-2 -left-2
+              bg-black text-white
+              text-xs font-bold
+              w-6 h-6 rounded-full
+              flex items-center justify-center
+            "
+          >
+            {items.length}
+          </span>
+        )}
       </button>
 
       {/* موبايل */}

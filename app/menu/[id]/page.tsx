@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Navbar from "../../../components/Navbar";
 import { supabase } from "../../../lib/supabaseClient";
 import { Plus, Minus, ArrowRight } from "lucide-react";
+import Image from "next/image";
+import { useCart } from "../../../context/CartContext";
 
 /* ================= Types ================= */
 
@@ -21,6 +23,15 @@ type MealOption = {
   values: OptionValue[];
 };
 
+type Category = {
+  id: number;
+  name: string;
+};
+
+type MealCategory = {
+  categories: Category[];
+};
+
 type Meal = {
   id: number;
   name: string;
@@ -28,6 +39,11 @@ type Meal = {
   price: number;
   options: MealOption[] | null;
   menu_item_images: { image_url: string }[];
+  menu_item_categories: MealCategory[];
+};
+
+type RawMealCategory = {
+  categories: Category | Category[] | null;
 };
 
 /* ================= Page ================= */
@@ -36,15 +52,45 @@ export default function MealDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
 
+  // ===== States =====
   const [meal, setMeal] = useState<Meal | null>(null);
   const [loading, setLoading] = useState(true);
-
+  const [notes, setNotes] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<
     Record<string, string>
   >({});
+  const [imgSrc, setImgSrc] = useState<string>("/images/fallbackimage.jpg");
 
-  /* ---------- Fetch meal ---------- */
+  const { addToCart } = useCart();
+
+  const handleAddToCart = () => {
+    if (!meal) return;
+
+    addToCart({
+      mealId: meal.id, // 🔑 مهم جدًا
+      name: meal.name,
+      image: imgSrc,
+      quantity,
+      notes,
+
+      options: Object.entries(selectedOptions).map(([optionId, value]) => {
+        const option = meal.options?.find((o) => o.id === optionId);
+        const selectedValue = option?.values.find((v) => v.value === value);
+
+        return {
+          optionId,
+          value,
+          label: selectedValue?.label || value, // ✅ هنا المهم
+        };
+      }),
+
+      basePrice: meal.price, // ✅ السعر الأساسي
+      optionsPrice, // ✅ مجموع الإضافات
+    });
+  };
+
+  // ===== Fetch meal =====
   useEffect(() => {
     const fetchMeal = async () => {
       const { data, error } = await supabase
@@ -56,19 +102,62 @@ export default function MealDetailsPage() {
           description,
           price,
           options,
-          menu_item_images ( image_url )
+          menu_item_images ( image_url ),
+          menu_item_categories (
+            categories (
+              id,
+              name
+            )
+          )
         `
         )
         .eq("id", id)
         .single();
 
-      if (!error) setMeal(data);
+      if (!error && data) {
+        const normalizedMeal: Meal = {
+          ...data,
+          menu_item_categories: (
+            data.menu_item_categories as RawMealCategory[]
+          ).map((mc) => ({
+            categories: mc.categories
+              ? Array.isArray(mc.categories)
+                ? mc.categories
+                : [mc.categories]
+              : [],
+          })),
+        };
+
+        setMeal(normalizedMeal);
+      }
+
       setLoading(false);
     };
 
     fetchMeal();
   }, [id]);
+  useEffect(() => {
+    if (!meal || !meal.options) return;
 
+    const defaults: Record<string, string> = {};
+
+    meal.options.forEach((option) => {
+      if (option.values.length > 0) {
+        defaults[option.id] = option.values[0].value; // ✅ أول خيار
+      }
+    });
+
+    setSelectedOptions(defaults);
+  }, [meal]);
+
+  // ===== Update image when meal changes =====
+  useEffect(() => {
+    if (meal?.menu_item_images?.[0]?.image_url) {
+      setImgSrc(meal.menu_item_images[0].image_url);
+    }
+  }, [meal]);
+
+  // ===== Conditional rendering (بعد كل hooks فقط) =====
   if (loading) {
     return <div className="text-center mt-40">جاري التحميل...</div>;
   }
@@ -86,10 +175,6 @@ export default function MealDetailsPage() {
       </div>
     );
   }
-
-  /* ---------- Image ---------- */
-  const image =
-    meal.menu_item_images?.[0]?.image_url || "/images/fallbackimage.jpg";
 
   /* ---------- Price calculation ---------- */
   const optionsPrice =
@@ -118,21 +203,47 @@ export default function MealDetailsPage() {
         <div className="bg-white rounded-2xl shadow-lg grid lg:grid-cols-2 overflow-hidden">
           {/* ================= Image (1:1) ================= */}
           <div className="p-6">
-            <div className="aspect-square w-full overflow-hidden rounded-xl bg-gray-100">
-              <img
-                src={image}
+            <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gray-100">
+              <Image
+                src={imgSrc}
                 alt={meal.name}
-                onError={(e) => {
-                  e.currentTarget.src = "/images/fallbackimage.jpg";
-                }}
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover"
+                onError={() => setImgSrc("/images/fallbackimage.jpg")}
               />
             </div>
           </div>
 
           {/* ================= Info ================= */}
-          <div className="p-8">
+          <div className="p-8 lg:border-r lg:border-[#DC2B3F]/40">
             <h1 className="text-3xl font-extrabold mb-4">{meal.name}</h1>
+            {/* ===== Categories Badges ===== */}
+            {meal.menu_item_categories.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-5">
+                {meal.menu_item_categories.flatMap((mc) => {
+                  if (!mc.categories) return [];
+
+                  const categoriesArray = Array.isArray(mc.categories)
+                    ? mc.categories
+                    : [mc.categories];
+
+                  return categoriesArray.map((cat) => (
+                    <span
+                      key={cat.id}
+                      className="
+            text-xs font-semibold
+            px-3 py-1 rounded-full
+            bg-[#DC2B3F]/10 text-[#DC2B3F]
+          "
+                    >
+                      {cat.name}
+                    </span>
+                  ));
+                })}
+              </div>
+            )}
+            {/* ===== meal descr ===== */}
 
             {meal.description && (
               <p className="text-gray-600 mb-6">{meal.description}</p>
@@ -171,34 +282,59 @@ export default function MealDetailsPage() {
               </div>
             ))}
 
-            {/* Price */}
-            <div className="text-3xl font-bold text-[#DC2B3F] mb-6">
-              {totalPrice} ₪
+            {/* Notes */}
+            <div className="mb-6">
+              <h4 className="font-bold mb-2">ملاحظات على الطلب</h4>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="مثال: بدون بصل، زيادة صوص..."
+                rows={4}
+                className="
+      w-full rounded-lg border border-gray-200
+      p-3 text-sm resize-none
+      focus:outline-none focus:ring-2 focus:ring-[#DC2B3F]/40
+    "
+              />
             </div>
 
-            {/* Quantity */}
-            <div className="flex items-center gap-4 mb-6">
+            {/* ===== Price + Quantity + Add to Cart ===== */}
+            <div className="flex items-center gap-4 mt-8">
+              {/* Add to Cart */}
               <button
-                onClick={() => setQuantity(quantity + 1)}
-                className="w-10 h-10 bg-[#DC2B3F] text-white rounded"
+                onClick={handleAddToCart}
+                className="flex-1 bg-[#DC2B3F] text-white py-3 rounded-lg hover:bg-[#C02436] font-bold"
               >
-                <Plus />
+                إضافة إلى السلة
               </button>
 
-              <span className="text-lg font-bold">{quantity}</span>
+              {/* Quantity */}
+              <div className="flex items-center gap-2 border rounded-lg px-3 py-2">
+                <button
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="w-8 h-8 bg-[#DC2B3F] text-white rounded flex items-center justify-center"
+                >
+                  <Plus size={16} />
+                </button>
 
-              <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                disabled={quantity === 1}
-                className="w-10 h-10 bg-[#DC2B3F] text-white rounded disabled:opacity-50"
-              >
-                <Minus />
-              </button>
+                <span className="text-base font-bold w-6 text-center">
+                  {quantity}
+                </span>
+
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={quantity === 1}
+                  className="w-8 h-8 bg-[#DC2B3F] text-white rounded flex items-center justify-center disabled:opacity-50"
+                >
+                  <Minus size={16} />
+                </button>
+              </div>
+
+              {/* Price */}
+              <div className="text-2xl font-extrabold text-[#DC2B3F] whitespace-nowrap">
+                {totalPrice} ₪
+              </div>
             </div>
-
-            <button className="w-full bg-[#DC2B3F] text-white py-3 rounded-lg hover:bg-[#C02436]">
-              إضافة إلى السلة
-            </button>
           </div>
         </div>
       </main>
