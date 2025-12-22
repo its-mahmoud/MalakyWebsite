@@ -1,0 +1,73 @@
+
+DECLARE
+  search_query TEXT;
+BEGIN
+  search_query := '%' || p_search_text || '%';
+
+  RETURN QUERY
+  SELECT
+    o.id AS order_id,
+    o.created_at,
+    o.status,
+    o.total_price,
+    o.subtotal,
+    o.delivery_price,
+    o.order_type,
+    (u.raw_user_meta_data ->> 'first_name') || ' ' || (u.raw_user_meta_data ->> 'last_name') AS customer_name,
+    (u.raw_user_meta_data ->> 'phone_number') AS customer_phone,
+    b.name AS branch_name,
+    dz.city || '، ' || ua.street_address AS delivery_address,
+    ua.notes AS delivery_notes,
+    COALESCE(
+      (
+        SELECT json_agg(
+          json_build_object(
+            'quantity', oi.quantity,
+            'notes', oi.notes,
+            'options', oi.options,
+            'additional_pieces',
+              CASE
+                WHEN oi.additional_pieces IS NOT NULL THEN
+                  (
+                    SELECT coalesce(json_agg(
+                      json_build_object(
+                        'type', piece->>'type',
+                        'name', COALESCE(apt.name_ar, piece->>'name', piece->>'type'),
+                        'quantity', (piece->>'quantity')::integer,
+                        'price', (piece->>'price')::numeric
+                      )
+                    ), '[]'::json)
+                    FROM jsonb_array_elements(oi.additional_pieces) AS piece
+                    LEFT JOIN public.additional_piece_types apt ON (piece->>'type') = apt.id
+                  )
+                ELSE '[]'::json
+              END,
+            'menu_items', json_build_object(
+              'name', mi.name,
+              'price', mi.price,
+              'options', mi.options
+            )
+          )
+        )
+        FROM public.order_items oi
+        LEFT JOIN public.menu_items mi ON oi.menu_item_id = mi.id
+        WHERE oi.order_id = o.id
+      ),
+      '[]'::json
+    ) AS order_items
+  FROM public.orders AS o
+  LEFT JOIN auth.users AS u ON o.user_id = u.id
+  LEFT JOIN public.user_addresses AS ua ON o.user_address_id = ua.id
+  LEFT JOIN public.delivery_zones AS dz ON ua.delivery_zone_id = dz.id
+  LEFT JOIN public.branches AS b ON o.branch_id = b.id
+  WHERE
+    (p_order_id IS NULL OR o.id = p_order_id) AND
+    (p_date IS NULL OR (o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jerusalem')::date = p_date) AND
+    (p_search_text IS NULL OR (
+       (u.raw_user_meta_data ->> 'first_name') ILIKE search_query OR
+       (u.raw_user_meta_data ->> 'last_name') ILIKE search_query OR
+       (u.raw_user_meta_data ->> 'phone_number') ILIKE search_query
+    )) AND
+    (p_status_filter IS NULL OR o.status = p_status_filter)
+  ORDER BY o.created_at DESC;
+END;
