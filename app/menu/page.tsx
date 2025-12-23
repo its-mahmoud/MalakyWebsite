@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
-import { supabase } from "../../lib/supabaseClient";
+import { supabaseBrowser as supabase } from "@/lib/supabaseBrowser";
 import { MealCard } from "../../components/MealCard";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 /* ================= Types ================= */
@@ -50,7 +50,7 @@ export default function MenuPage() {
 
   useEffect(() => {
     const handleScroll = () => {
-      const triggerPoint = 120; 
+      const triggerPoint = 120;
       setIsSticky(window.scrollY > triggerPoint);
     };
 

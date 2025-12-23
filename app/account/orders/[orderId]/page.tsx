@@ -6,12 +6,10 @@ import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
-/* ================= Types ================= */
-
-type OrderOption = {
-  optionId: number;
-  label: string;
-  price?: number;
+type OrderItemOption = {
+  id: number;
+  name: string;
+  price: number;
 };
 
 
@@ -20,11 +18,11 @@ type OrderItem = {
   quantity: number;
   unit_price: number;
   notes: string | null;
-  options: OrderOption[];
-  menu_items: {
+  options: OrderItemOption[];
+  menu_item: {
     name: string;
     image: string | null;
-  }[];
+  };
 };
 
 type Order = {
@@ -39,157 +37,63 @@ type Order = {
   order_items: OrderItem[];
 };
 
-/* ================= Page ================= */
-
 export default function OrderDetailsPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const router = useRouter();
   const { user, loading } = useAuth();
 
   const [order, setOrder] = useState<Order | null>(null);
-  const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
     if (!user || !orderId) return;
 
     const fetchOrder = async () => {
-      const { data, error } = await supabaseBrowser
-        .from("orders")
-        .select(
-          `
-          id,
-          created_at,
-          status,
-          order_type,
-          subtotal,
-          delivery_price,
-          total_price,
-          notes,
-          user_id,
-          order_items (
-            id,
-            quantity,
-            unit_price,
-            notes,
-            options,
-            menu_items (
-              name,
-              image
-            )
-          )
-        `
-        )
-        .eq("id", orderId)
-        .single();
+      const { data, error } = await supabaseBrowser.rpc(
+        "get_order_with_items",
+        { p_order_id: Number(orderId) }
+      );
+
+      console.log("RPC DATA:", data);
+      console.log("RPC ERROR:", error);
 
       if (error || !data) {
-        router.replace("/orders");
-        return;
-      }
-
-      // 🔒 تأكيد أن الطلب يخص المستخدم نفسه
-      if (data.user_id !== user.id) {
-        router.replace("/orders");
+        router.replace("/account/orders");
         return;
       }
 
       setOrder(data as Order);
-      setPageLoading(false);
     };
 
     fetchOrder();
   }, [user, orderId, router]);
 
-  if (loading || pageLoading) return null;
-  if (!order) return null;
+  if (loading || !order) return null;
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#F5F5F5]">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-4 py-28 space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-extrabold">تفاصيل الطلب #{order.id}</h1>
-          <p className="text-sm text-gray-500">
-            {new Date(order.created_at).toLocaleString("ar")}
-          </p>
-        </div>
+      <main className="max-w-4xl mx-auto px-4 py-28 space-y-6">
+        <h1 className="text-3xl font-extrabold">تفاصيل الطلب #{order.id}</h1>
 
-        {/* Status */}
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-          <p className="font-bold">
-            الحالة: <span className="text-[#DC2B3F]">{order.status}</span>
-          </p>
-        </div>
+        {order.order_items.map((item) => (
+          <div key={item.id} className="bg-white rounded-xl p-4 flex gap-4">
+            <img
+              src={item.menu_item.image || "/images/fallbackimage.jpg"}
+              alt={item.menu_item.name}
+              className="w-16 h-16 rounded-lg object-cover"
+            />
 
-        {/* Items */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
-          <h2 className="font-bold text-lg">العناصر</h2>
-
-          {order.order_items.map((item) => {
-            const menuItem = item.menu_items[0];
-
-            return (
-              <div key={item.id} className="flex gap-4 border rounded-xl p-4">
-                <img
-                  src={menuItem?.image || "/images/fallbackimage.jpg"}
-                  alt={menuItem?.name || "وجبة"}
-                  className="w-16 h-16 rounded-lg object-cover"
-                />
-
-                <div className="flex-1">
-                  <h4 className="font-bold text-sm">{menuItem?.name}</h4>
-
-                  <p className="text-xs text-gray-500">
-                    الكمية: {item.quantity}
-                  </p>
-
-                  {item.options?.length > 0 && (
-                    <ul className="text-xs text-gray-600 mt-1 space-y-0.5">
-                      {item.options.map((opt: OrderOption, i: number) => (
-
-                        <li key={i}>• {opt.label}</li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {item.notes && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      ملاحظة: {item.notes}
-                    </p>
-                  )}
-                </div>
-
-                <div className="font-bold text-sm text-[#DC2B3F] whitespace-nowrap">
-                  {item.unit_price * item.quantity} ₪
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Summary */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span>السعر الفرعي</span>
-            <span>{order.subtotal} ₪</span>
-          </div>
-
-          {order.order_type === "delivery" && (
-            <div className="flex justify-between">
-              <span>سعر التوصيل</span>
-              <span>{order.delivery_price} ₪</span>
+            <div className="flex-1">
+              <p className="font-bold">{item.menu_item.name}</p>
+              <p className="text-sm text-gray-500">الكمية: {item.quantity}</p>
             </div>
-          )}
 
-          <hr />
-
-          <div className="flex justify-between text-lg font-extrabold">
-            <span>الإجمالي</span>
-            <span className="text-[#DC2B3F]">{order.total_price} ₪</span>
+            <div className="font-bold text-[#DC2B3F]">
+              {item.unit_price * item.quantity} ₪
+            </div>
           </div>
-        </div>
+        ))}
       </main>
     </div>
   );
