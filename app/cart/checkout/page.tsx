@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 /* ================= Types ================= */
 
@@ -13,6 +14,8 @@ type Step = 1 | 2 | 3 | 4;
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { user } = useAuth();
+
   const { items } = useCart();
 
   const [branches, setBranches] = useState<
@@ -80,7 +83,7 @@ export default function CheckoutPage() {
   const [branch, setBranch] = useState("");
 
   const handleSubmit = async () => {
-    // 1) تجهيز أسعار الطلب
+    // 1 تجهيز أسعار الطلب
     const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
     const finalDeliveryPrice = orderType === "delivery" ? deliveryPrice : 0;
 
@@ -89,32 +92,37 @@ export default function CheckoutPage() {
     // 2) تجهيز بيانات الطلب (Guest)
     const guestName = `${contact.firstName} ${contact.lastName}`.trim();
 
+const isLoggedIn = !!user;
 
-    // 3) إنشاء Order
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        order_type: orderType,
-        subtotal,
-        delivery_price: finalDeliveryPrice,
-        total_price: total,
+const { data: order, error: orderError } = await supabase
+  .from("orders")
+  .insert({
+    // 🔗 الربط بالحساب إن وجد
+    user_id: isLoggedIn ? user.id : null,
 
-        guest_customer_name: guestName,
-        guest_phone: contact.phone,
+    order_type: orderType,
+    subtotal,
+    delivery_price: finalDeliveryPrice,
+    total_price: total,
 
-        branch_id: orderType === "pickup" ? Number(branch) : null,
+    // 👤 بيانات العميل
+    guest_customer_name: isLoggedIn
+      ? null
+      : `${contact.firstName} ${contact.lastName}`.trim(),
 
-        // ✅ الجديد
-        delivery_zone_id: orderType === "delivery" ? Number(zoneId) : null,
+    guest_phone: isLoggedIn ? null : contact.phone,
 
-        // تفاصيل إضافية (شارع، بناية…)
-        notes: orderType === "delivery" ? address : null,
+    branch_id: orderType === "pickup" ? Number(branch) : null,
+    delivery_zone_id: orderType === "delivery" ? Number(zoneId) : null,
 
-        status: "pending",
-        verification_status: "pending",
-      })
-      .select("id")
-      .single();
+    notes: orderType === "delivery" ? address : null,
+
+    status: "pending",
+    verification_status: "pending",
+  })
+  .select("id")
+  .single();
+
 
     if (orderError || !order) {
       console.error(orderError);
@@ -146,7 +154,6 @@ export default function CheckoutPage() {
     // لاحقًا: router.push(`/order/${order.id}`)
   };
 
-  /* ================= Guards ================= */
 
   if (items.length === 0) {
     return (

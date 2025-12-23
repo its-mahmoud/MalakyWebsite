@@ -68,7 +68,7 @@ export default function MealDetailsPage() {
     if (!meal) return;
 
     addToCart({
-      mealId: meal.id, // 🔑 مهم جدًا
+      mealId: meal.id,
       name: meal.name,
       image: imgSrc,
       quantity,
@@ -81,12 +81,12 @@ export default function MealDetailsPage() {
         return {
           optionId,
           value,
-          label: selectedValue?.label || value, // ✅ هنا المهم
+          label: selectedValue?.label || value, 
         };
       }),
 
-      basePrice: meal.price, // ✅ السعر الأساسي
-      optionsPrice, // ✅ مجموع الإضافات
+      basePrice: meal.price,
+      optionsPrice,
     });
   };
 

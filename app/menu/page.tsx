@@ -50,7 +50,7 @@ export default function MenuPage() {
 
   useEffect(() => {
     const handleScroll = () => {
-      const triggerPoint = 120; // ✨ عدلها حسب مكان النافبار
+      const triggerPoint = 120; 
       setIsSticky(window.scrollY > triggerPoint);
     };
 
@@ -148,7 +148,6 @@ export default function MenuPage() {
         قائمة الطعام
       </h1>
 
-      {/* ================= Categories (Sticky + Scroll + Fade) ================= */}
       <div
         className={`
     sticky top-[50px] z-40 py-4

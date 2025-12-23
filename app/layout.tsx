@@ -6,6 +6,7 @@ import { CartUIProvider } from "context/CartUIContext";
 import CartDrawer from "@/components/CartDrawer";
 import { MealQuickViewProvider } from "@/context/MealQuickViewContext";
 import MealQuickViewModal from "@/components/MealQuickViewModal";
+import { AuthProvider } from "@/context/AuthContext";
 
 const beiruti = Beiruti({
   subsets: ["arabic"],
@@ -29,20 +30,22 @@ export default function RootLayout({
       <body
         className={`${beiruti.variable} ${poppins.variable} bg-[whitesmoke]`}
       >
-        <CartProvider>
-          <CartUIProvider>
-            <MealQuickViewProvider>
-              {/* Drawer global */}
-              <CartDrawer />
+        <AuthProvider>
+          <CartProvider>
+            <CartUIProvider>
+              <MealQuickViewProvider>
+                {/* Drawer global */}
+                <CartDrawer />
 
-              {/* الصفحات */}
-              {children}
+                {/* الصفحات */}
+                {children}
 
-              <Toaster position="top-center" />
-              <MealQuickViewModal />
-            </MealQuickViewProvider>
-          </CartUIProvider>
-        </CartProvider>
+                <Toaster position="top-center" />
+                <MealQuickViewModal />
+              </MealQuickViewProvider>
+            </CartUIProvider>
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );
